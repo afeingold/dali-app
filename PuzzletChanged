@@ -1,0 +1,152 @@
+/// <summary>
+	/// Detect the pieces added to the play tray. 
+	/// Determine player color from current active pieces. 
+	/// Called from PuzzletManager each scan.
+	/// </summary>
+	/// <param name="removedTiles">array of tiles removed since last scan</param>
+	/// <param name="removedTiles">array of tiles added since last scan</param>
+	public void PuzzletChanged(PuzzletData[] removedTiles, PuzzletData[] addedTiles)
+	{
+		/*
+		For each added tile, add the appropriate color to the palette
+		*/
+		foreach(PuzzletData piece in addedTiles)
+		{
+			numTiles++;//increase count of tiles on board
+			print("Piece added: " + piece.ID + " at (" + piece.X + ", " + piece.Y + ")");
+			//calculate palette position based on board position
+			paletteX = 2 - (piece.X / 2);
+			paletteY = (piece.Y > 2)? 1 : 0;
+
+
+			if(IsRBYWK(piece.ID) && piece.Y != 2)//if the tile added corresponds to a primary color (or white or black)
+			{
+				switch(piece.ID)//update the palette appropriately
+				{
+				case PuzzletKey.hedgehog:
+				case PuzzletKey.forward:
+					palette[paletteX, paletteY] = Colors.Blue;
+					break;
+				case PuzzletKey.back:
+				case PuzzletKey.jump:
+					palette[paletteX, paletteY] = Colors.Yellow;
+					break;
+				case PuzzletKey.minus:
+				case PuzzletKey.stop:
+					palette[paletteX, paletteY] = Colors.Red;
+					break;
+				case PuzzletKey.loop1:
+					palette[paletteX,paletteY] = Colors.White;
+					break;
+				case PuzzletKey.loop2:
+					palette[paletteX,paletteY] = Colors.Black;
+					break;
+				default:
+					palette[paletteX, paletteY] = Colors._NA;
+					break;
+				}
+			}
+		}
+
+
+		/*
+		For each removed tile, remove the appropriate color from the palette
+		*/
+		foreach(PuzzletData piece in removedTiles)
+		{
+			numTiles--;//decrease the count of tiles on the board
+			print("Piece removed: " + piece.ID + " at (" + piece.X + ", " + piece.Y + ")");
+			//calculate palette position based on board position
+			paletteX = 2 - (piece.X / 2);
+			paletteY = (piece.Y > 2)? 1 : 0;
+			
+			palette[paletteX,paletteY] = Colors._NA;//reset palette value to null
+		}
+
+		/*
+		Based on the tiles on the palette, determine the mixed color
+		*/
+		colName = Colors._NA;//set default to white
+
+		switch(numTiles)//determine colName
+		{
+		case 0:
+			//if board is empty, player should be white
+
+			break;
+		case 1:
+			for(int i = 0; i < 3; i++)
+			{
+				for(int j = 0; j < 2; j++)
+				{
+					if(palette[i,j] != Colors._NA)//find the nonempty palette position
+					{
+						colName = palette[i,j];//get its color
+					}
+				}
+			}
+			if(7 <= (int)colName)//if the only color is white or black
+				colName = Colors._NA;//act as if it were blank
+			break;
+		case 2:
+			for(int i = 0; i < 3; i++)
+			{
+				for(int j = 0; j < 2; j++)
+				{
+					if(palette[i,j] != Colors._NA)//find the nonempty palette postitions
+					{
+						if(col1 == Colors._NA)//if col1 is unset
+							col1 = palette[i,j];//set it
+						else//else if col1 is set then col2 is unset
+							col2 = palette[i,j];//so set it
+					}
+				}
+			}
+			if((7 <= (int)col1 && 7 <= (int)col2))//if both colors are neutrals
+			{
+				colName = Colors._NA;//act as if board was blank
+			}
+			else//otherwise
+			{
+				colName = globals.pairs[(int)col1, (int)col2];//use color reference array to determine correct mix
+			}
+			break;
+		case 3:
+			int numNeutrals = 0;//introduce counter to simplify check on neutrals
+			for(int i = 0; i < 3; i++)
+			{
+				for(int j = 0; j < 2; j++)
+				{
+					if(palette[i,j] != Colors._NA)//find nonempty palette positions
+					{
+						if(col1 == Colors._NA)//set col1, col2, col3 in order
+							col1 = palette[i,j];
+						else if(col2 == Colors._NA)
+							col2 = palette[i,j];
+						else
+							col3 = palette[i,j];
+					}
+				}
+			}
+			if((int)col1 >= 7)//increment neutrals count if col1 is white or black
+				numNeutrals++;
+			if((int)col2 >= 7)//increment neutrals count if col2 is white or black
+				numNeutrals++;
+			if((int)col3 >= 7)//increment neutrals count if col3 is white or black
+				numNeutrals++;
+			if(numNeutrals == 1)//if there is exactly one neurtal on the board
+			{
+				colName = globals.pairs[(int)globals.pairs[(int)col1, (int)col2], (int)col3];//use color reference array to determine correct mix
+			}
+			break;
+		case 4:
+		case 5:
+		default:
+			break;
+		}
+
+		player.layer = globals.namesToLayers[(int)colName];//change player's layer to correspond with the color
+		player.GetComponent<Player>().color = colName;//change player's color variable
+		player.GetComponent<SpriteRenderer>().color = globals.namesToColors[(int)colName];//change player's appearance
+	
+	}
